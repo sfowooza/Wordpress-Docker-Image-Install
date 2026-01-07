@@ -16,6 +16,13 @@ CYAN='\033[0;36m'
 MAGENTA='\033[0;35m'
 NC='\033[0m' # No Color
 
+# Helper function for colored prompts
+prompt() {
+    local color=$1
+    local text=$2
+    echo -ne "${color}${text}${NC}"
+}
+
 # Database configurations
 declare -A DB_IMAGES=(
     ["mysql"]="mysql:8.0"
@@ -162,7 +169,8 @@ select_database() {
     echo ""
 
     while true; do
-        read -p "$(echo -e ${GREEN}Select database [1-3, default: 1]: ${NC})" db_choice
+        prompt $GREEN "Select database [1-3, default: 1]: "
+        read db_choice
         db_choice=${db_choice:-1}
 
         case $db_choice in
@@ -180,7 +188,8 @@ select_database() {
                 db_type="postgresql"
                 db_display_name="PostgreSQL"
                 print_warning "PostgreSQL requires the WP PG4WP plugin."
-                read -p "$(echo -e ${YELLOW}Continue with PostgreSQL? [Y/n]: ${NC})" continue_pg
+                prompt $YELLOW "Continue with PostgreSQL? [Y/n]: "
+                read continue_pg
                 continue_pg=${continue_pg:-Y}
                 if [[ $continue_pg =~ ^[Yy]$ ]]; then
                     break
@@ -220,7 +229,8 @@ main_wizard() {
     echo ""
 
     while true; do
-        read -p "$(echo -e ${GREEN}Enter the port for WordPress [default: 8080]: ${NC})" wp_port
+        prompt $GREEN "Enter the port for WordPress [default: 8080]: "
+        read wp_port
         wp_port=${wp_port:-8080}
 
         # Validate port is a number
@@ -242,7 +252,8 @@ main_wizard() {
             echo "Process using this port:"
             find_port_process $wp_port
             echo ""
-            read -p "$(echo -e ${YELLOW}Choose a different port? [Y/n]: ${NC})" choose_different
+            prompt $YELLOW "Choose a different port? [Y/n]: "
+            read choose_different
             choose_different=${choose_different:-Y}
             if [[ $choose_different =~ ^[Yy]$ ]]; then
                 continue
@@ -265,7 +276,8 @@ main_wizard() {
     echo ""
 
     while true; do
-        read -p "$(echo -e ${GREEN}Enter your site title [default: My WordPress Site]: ${NC})" site_title
+        prompt $GREEN "Enter your site title [default: My WordPress Site]: "
+        read site_title
         site_title=${site_title:-My WordPress Site}
 
         if [ -z "$site_title" ]; then
@@ -281,7 +293,8 @@ main_wizard() {
     # Step 3: Admin Username
     echo ""
     while true; do
-        read -p "$(echo -e ${GREEN}Enter admin username [default: admin]: ${NC})" admin_user
+        prompt $GREEN "Enter admin username [default: admin]: "
+        read admin_user
         admin_user=${admin_user:-admin}
 
         if [ -z "$admin_user" ]; then
@@ -303,7 +316,8 @@ main_wizard() {
     # Step 4: Admin Password
     echo ""
     while true; do
-        read -s -p "$(echo -e ${GREEN}Enter admin password (min 8 characters): ${NC})" admin_password
+        prompt $GREEN "Enter admin password (min 8 characters): "
+        read -s admin_password
         echo ""
 
         if ! validate_password "$admin_password"; then
@@ -311,7 +325,8 @@ main_wizard() {
         fi
 
         # Confirm password
-        read -s -p "$(echo -e ${GREEN}Confirm admin password: ${NC})" admin_password_confirm
+        prompt $GREEN "Confirm admin password: "
+        read -s admin_password_confirm
         echo ""
 
         if [ "$admin_password" != "$admin_password_confirm" ]; then
@@ -327,7 +342,8 @@ main_wizard() {
     # Step 5: Admin Email
     echo ""
     while true; do
-        read -p "$(echo -e ${GREEN}Enter admin email: ${NC})" admin_email
+        prompt $GREEN "Enter admin email: "
+        read admin_email
 
         if ! validate_email "$admin_email"; then
             print_error "Invalid email format"
@@ -341,7 +357,8 @@ main_wizard() {
 
     # Step 6: WordPress URL
     echo ""
-    read -p "$(echo -e ${GREEN}Enter WordPress URL [default: localhost:$wp_port]: ${NC})" wp_url
+    prompt $GREEN "Enter WordPress URL [default: localhost:$wp_port]: "
+    read wp_url
     wp_url=${wp_url:-localhost:$wp_port}
     print_success "WordPress URL: $wp_url"
 
@@ -354,10 +371,12 @@ main_wizard() {
     print_info "Database: $db_display_name"
     print_info "Press Enter to use auto-generated secure credentials"
 
-    read -p "$(echo -e ${GREEN}Database name [default: wordpress]: ${NC})" db_name
+    prompt $GREEN "Database name [default: wordpress]: "
+    read db_name
     db_name=${db_name:-wordpress}
 
-    read -p "$(echo -e ${GREEN}Database user [default: wpuser]: ${NC})" db_user
+    prompt $GREEN "Database user [default: wpuser]: "
+    read db_user
     db_user=${db_user:-wpuser}
 
     # Generate secure random password
@@ -403,7 +422,8 @@ main_wizard() {
     fi
 
     # Confirm installation
-    read -p "$(echo -e ${YELLOW}Start installation with these settings? [Y/n]: ${NC})" confirm
+    prompt $YELLOW "Start installation with these settings? [Y/n]: "
+    read confirm
     confirm=${confirm:-Y}
 
     if ! [[ $confirm =~ ^[Yy]$ ]]; then
@@ -566,7 +586,8 @@ uninstall() {
     print_header
     print_warning "This will stop and remove all WordPress containers and volumes."
     echo ""
-    read -p "$(echo -e ${YELLOW}Are you sure? [y/N]: ${NC})" confirm
+    prompt $YELLOW "Are you sure? [y/N]: "
+    read confirm
 
     if [[ $confirm =~ ^[Yy]$ ]]; then
         print_info "Stopping containers..."
