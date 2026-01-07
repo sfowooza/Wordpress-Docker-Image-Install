@@ -47,11 +47,10 @@ declare -A DB_DATA_PATHS=(
     ["postgresql"]="/var/lib/postgresql/data"
 )
 
-declare -A DB_HEALTHCHECKS=(
-    ["mysql"]= '["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$DB_ROOT_PASSWORD"]'
-    ["mariadb"]= '["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$DB_ROOT_PASSWORD"]'
-    ["postgresql"]= '["CMD-SHELL", "pg_isready -U $DB_USER -d $DB_NAME"]'
-)
+declare -A DB_HEALTHCHECKS
+DB_HEALTHCHECKS["mysql"]='["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$DB_ROOT_PASSWORD"]'
+DB_HEALTHCHECKS["mariadb"]='["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$DB_ROOT_PASSWORD"]'
+DB_HEALTHCHECKS["postgresql"]='["CMD-SHELL", "pg_isready -U $DB_USER -d $DB_NAME"]'
 
 # Functions
 print_header() {
