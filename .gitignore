@@ -1,0 +1,13 @@
+# Environment
+.env
+credentials.txt
+
+# Docker volumes
+wp-content/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,52 @@
+services:
+  wordpress:
+    build: .
+    container_name: wp_installer_wordpress
+    ports:
+      - "${WP_PORT:-8080}:80"
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_NAME: ${DB_NAME:-wordpress}
+      WORDPRESS_DB_USER: ${DB_USER:-wpuser}
+      WORDPRESS_DB_PASSWORD: ${DB_PASSWORD:-wppassword}
+      WORDPRESS_DB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
+      WORDPRESS_ADMIN_USER: ${WP_ADMIN_USER:-admin}
+      WORDPRESS_ADMIN_PASSWORD: ${WP_ADMIN_PASSWORD:-admin}
+      WORDPRESS_ADMIN_EMAIL: ${WP_ADMIN_EMAIL:-admin@example.com}
+      WORDPRESS_SITE_TITLE: ${WP_SITE_TITLE:-My WordPress Site}
+      WORDPRESS_URL: ${WP_URL:-localhost:8080}
+      WP_AUTO_INSTALL: "${WP_AUTO_INSTALL:-true}"
+    volumes:
+      - wordpress_data:/var/www/html
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  db:
+    image: mysql:8.0
+    container_name: wp_installer_db
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-wordpress}
+      MYSQL_USER: ${DB_USER:-wpuser}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-wppassword}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD:-rootpassword}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+volumes:
+  wordpress_data:
+  db_data:
