@@ -424,6 +424,25 @@ main_wizard() {
     db_data_path=${DB_DATA_PATHS[$db_type]}
     db_healthcheck=${DB_HEALTHCHECKS[$db_type]}
 
+    # Set compose file based on database type
+    case $db_type in
+        mysql)
+            compose_file="docker-compose.yml"
+            ;;
+        mariadb)
+            compose_file="docker-compose.mariadb.yml"
+            ;;
+        postgresql)
+            compose_file="docker-compose.postgresql.yml"
+            ;;
+        *)
+            compose_file="docker-compose.yml"
+            ;;
+    esac
+
+    # Save compose file name to .env for later use
+    echo "COMPOSE_FILE=$compose_file" > .compose_file
+
     # Summary
     echo ""
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -502,10 +521,10 @@ EOF
     echo ""
 
     print_info "Pulling Docker images..."
-    docker compose pull
+    docker compose -f "$compose_file" pull
 
     print_info "Starting Docker containers..."
-    docker compose up -d
+    docker compose -f "$compose_file" up -d
 
     echo ""
     print_info "Waiting for WordPress to be ready..."
@@ -516,7 +535,7 @@ EOF
     local attempt=0
 
     while [ $attempt -lt $max_attempts ]; do
-        if docker compose ps | grep wordpress | grep -q "healthy\|Up"; then
+        if docker compose -f "$compose_file" ps | grep wordpress | grep -q "healthy\|Up"; then
             break
         fi
         echo -n "."
@@ -533,7 +552,7 @@ EOF
     # Install WP PG4WP plugin for PostgreSQL
     if [ "$db_type" = "postgresql" ]; then
         print_info "Installing WP PG4WP plugin for PostgreSQL support..."
-        docker compose exec -T wordpress wp plugin install wp-pg4wp --activate --allow-root 2>/dev/null || \
+        docker compose -f "$compose_file" exec -T wordpress wp plugin install wp-pg4wp --activate --allow-root 2>/dev/null || \
         print_warning "WP PG4WP plugin will need to be installed manually. Download from: https://github.com/kevinoid/wp-pg4wp"
     fi
 
@@ -615,8 +634,14 @@ uninstall() {
     read confirm
 
     if [[ $confirm =~ ^[Yy]$ ]]; then
+        # Get compose file from .compose_file or default
+        local compose_file="docker-compose.yml"
+        if [ -f .compose_file ]; then
+            compose_file=$(source .compose_file; echo $COMPOSE_FILE)
+        fi
+
         print_info "Stopping containers..."
-        docker compose down -v
+        docker compose -f "$compose_file" down -v
 
         print_info "Removing volumes..."
         docker volume rm wordpress-docker-installer_wordpress_data 2>/dev/null || true
@@ -648,8 +673,14 @@ show_help() {
 
 # Start containers
 start_containers() {
+    # Get compose file from .compose_file or default
+    local compose_file="docker-compose.yml"
+    if [ -f .compose_file ]; then
+        compose_file=$(source .compose_file; echo $COMPOSE_FILE)
+    fi
+
     print_info "Starting WordPress containers..."
-    docker compose up -d
+    docker compose -f "$compose_file" up -d
     print_success "Containers started"
     echo ""
     echo "Access your site at: $(grep WP_URL .env 2>/dev/null | cut -d'=' -f2 || echo 'http://localhost:8080')"
@@ -657,26 +688,50 @@ start_containers() {
 
 # Stop containers
 stop_containers() {
+    # Get compose file from .compose_file or default
+    local compose_file="docker-compose.yml"
+    if [ -f .compose_file ]; then
+        compose_file=$(source .compose_file; echo $COMPOSE_FILE)
+    fi
+
     print_info "Stopping WordPress containers..."
-    docker compose down
+    docker compose -f "$compose_file" down
     print_success "Containers stopped"
 }
 
 # Restart containers
 restart_containers() {
+    # Get compose file from .compose_file or default
+    local compose_file="docker-compose.yml"
+    if [ -f .compose_file ]; then
+        compose_file=$(source .compose_file; echo $COMPOSE_FILE)
+    fi
+
     print_info "Restarting WordPress containers..."
-    docker compose restart
+    docker compose -f "$compose_file" restart
     print_success "Containers restarted"
 }
 
 # Show logs
 show_logs() {
-    docker compose logs -f
+    # Get compose file from .compose_file or default
+    local compose_file="docker-compose.yml"
+    if [ -f .compose_file ]; then
+        compose_file=$(source .compose_file; echo $COMPOSE_FILE)
+    fi
+
+    docker compose -f "$compose_file" logs -f
 }
 
 # Show status
 show_status() {
-    docker compose ps
+    # Get compose file from .compose_file or default
+    local compose_file="docker-compose.yml"
+    if [ -f .compose_file ]; then
+        compose_file=$(source .compose_file; echo $COMPOSE_FILE)
+    fi
+
+    docker compose -f "$compose_file" ps
 }
 
 # Main script logic

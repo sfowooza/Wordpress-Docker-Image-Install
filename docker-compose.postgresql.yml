@@ -3,15 +3,15 @@ services:
     build:
       context: .
       args:
-        DB_TYPE: mysql
+        DB_TYPE: postgresql
     container_name: wp_installer_wordpress
     ports:
       - "${WP_PORT:-8080}:80"
     environment:
-      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_HOST: db:5432
       WORDPRESS_DB_NAME: ${DB_NAME:-wordpress}
       WORDPRESS_DB_USER: ${DB_USER:-wpuser}
-      WORDPRESS_DB_PASSWORD: ${DB_PASSWORD:-wppassword}
+      WORDPRESS_DB_PASSWORD: ${DB_PASSWORD}
       WORDPRESS_CONFIG_EXTRA: |
         define('WP_SITEURL', '${WP_URL:-http://localhost:8080}');
         define('WP_HOME', '${WP_URL:-http://localhost:8080}');
@@ -21,7 +21,7 @@ services:
       WORDPRESS_SITE_TITLE: ${WP_SITE_TITLE:-My WordPress Site}
       WORDPRESS_URL: ${WP_URL:-localhost:8080}
       WP_AUTO_INSTALL: "${WP_AUTO_INSTALL:-true}"
-      DB_TYPE: mysql
+      DB_TYPE: postgresql
     volumes:
       - wordpress_data:/var/www/html
     depends_on:
@@ -36,17 +36,16 @@ services:
     restart: unless-stopped
 
   db:
-    image: mysql:8.0
+    image: postgres:16-alpine
     container_name: wp_installer_db
     environment:
-      MYSQL_DATABASE: ${DB_NAME:-wordpress}
-      MYSQL_USER: ${DB_USER:-wpuser}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:-wordpress}
+      POSTGRES_USER: ${DB_USER:-wpuser}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
-      - db_data:/var/lib/mysql
+      - db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$MYSQL_ROOT_PASSWORD"]
+      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
       interval: 10s
       timeout: 5s
       retries: 10
