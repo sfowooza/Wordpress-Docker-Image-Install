@@ -2,6 +2,7 @@
 
 #############################################
 # WordPress Docker Installer
+# for Linux systems only
 # by Avodah Systems (https://avodahsystems.com)
 #############################################
 
@@ -125,6 +126,18 @@ validate_password() {
 
 # Check if running as root or with sudo
 check_permissions() {
+    # Check if running on Linux
+    if [ "$(uname)" != "Linux" ]; then
+        print_error "This installer is designed for Linux systems only."
+        echo ""
+        echo "Detected OS: $(uname)"
+        echo ""
+        echo "For Windows: Use WSL2 or Docker Desktop with manual setup"
+        echo "For macOS: Use Docker Desktop with manual setup"
+        echo ""
+        exit 1
+    fi
+
     if [ ! -w . ]; then
         print_error "Cannot write to current directory. Please run with sudo:"
         echo ""

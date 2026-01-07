@@ -1,11 +1,14 @@
 # WordPress Docker Installer
 
-A simple, one-command WordPress installer using Docker. Choose from MySQL, MariaDB, or PostgreSQL databases. Just pull the image, run the installer script, and have WordPress running in minutes.
+A simple, one-command WordPress installer using Docker for Linux systems. Choose from MySQL, MariaDB, or PostgreSQL databases. Just pull the image, run the installer script, and have WordPress running in minutes.
 
 ![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)
 ![WordPress](https://img.shields.io/badge/WordPress-%23117ac6?style=for-the-badge&logo=WordPress&logoColor=white)
+![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)
 
 By [Avodah Systems](https://avodahsystems.com)
+
+> **Note:** This installer is designed for **Linux systems only**. It uses bash scripts and Linux-specific commands that are not compatible with Windows or macOS.
 
 ## Features
 
@@ -29,10 +32,13 @@ By [Avodah Systems](https://avodahsystems.com)
 
 ## Quick Start
 
-### Prerequisites
+### Requirements
 
+- **Linux operating system** (Ubuntu, Debian, CentOS, Fedora, etc.)
 - Docker installed on your system
 - Docker Compose installed
+- Bash shell
+- sudo privileges (for file creation and Docker operations)
 
 ### Installation
 
