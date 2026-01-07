@@ -123,6 +123,18 @@ validate_password() {
     return 0
 }
 
+# Check if running as root or with sudo
+check_permissions() {
+    if [ ! -w . ]; then
+        print_error "Cannot write to current directory. Please run with sudo:"
+        echo ""
+        echo "  sudo ./install.sh"
+        echo ""
+        echo "Or change directory ownership and run without sudo."
+        exit 1
+    fi
+}
+
 # Check dependencies
 check_dependencies() {
     print_info "Checking dependencies..."
@@ -657,6 +669,7 @@ show_status() {
 # Main script logic
 case "${1:-install}" in
     install)
+        check_permissions
         check_dependencies
         main_wizard
         ;;

@@ -49,10 +49,10 @@ cd Wordpress-Docker-Image-Install
 chmod +x install.sh
 ```
 
-3. Run the installation wizard:
+3. Run the installation wizard (may require sudo):
 
 ```bash
-./install.sh
+sudo ./install.sh
 ```
 
 ### Installation Wizard
