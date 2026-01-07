@@ -1,21 +1,26 @@
 services:
   wordpress:
-    build: .
+    build:
+      context: .
+      args:
+        DB_TYPE: ${DB_TYPE:-mysql}
     container_name: wp_installer_wordpress
     ports:
       - "${WP_PORT:-8080}:80"
     environment:
-      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_HOST: ${DB_HOST:-db:3306}
       WORDPRESS_DB_NAME: ${DB_NAME:-wordpress}
       WORDPRESS_DB_USER: ${DB_USER:-wpuser}
       WORDPRESS_DB_PASSWORD: ${DB_PASSWORD:-wppassword}
-      WORDPRESS_DB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
+      WORDPRESS_CONFIG_EXTRA: |
+        ${WORDPRESS_CONFIG_EXTRA:-}
       WORDPRESS_ADMIN_USER: ${WP_ADMIN_USER:-admin}
       WORDPRESS_ADMIN_PASSWORD: ${WP_ADMIN_PASSWORD:-admin}
       WORDPRESS_ADMIN_EMAIL: ${WP_ADMIN_EMAIL:-admin@example.com}
       WORDPRESS_SITE_TITLE: ${WP_SITE_TITLE:-My WordPress Site}
       WORDPRESS_URL: ${WP_URL:-localhost:8080}
       WP_AUTO_INSTALL: "${WP_AUTO_INSTALL:-true}"
+      DB_TYPE: ${DB_TYPE:-mysql}
     volumes:
       - wordpress_data:/var/www/html
     depends_on:
@@ -30,17 +35,24 @@ services:
     restart: unless-stopped
 
   db:
-    image: mysql:8.0
+    image: ${DB_IMAGE:-mysql:8.0}
     container_name: wp_installer_db
     environment:
-      MYSQL_DATABASE: ${DB_NAME:-wordpress}
-      MYSQL_USER: ${DB_USER:-wpuser}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-wppassword}
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
+      ${DB_ENV_PREFIX:-MYSQL_}DATABASE: ${DB_NAME:-wordpress}
+      ${DB_ENV_PREFIX:-MYSQL_}USER: ${DB_USER:-wpuser}
+      ${DB_ENV_PREFIX:-MYSQL_}PASSWORD: ${DB_PASSWORD:-wppassword}
+      ${DB_ROOT_ENV:-MYSQL_ROOT_PASSWORD}: ${DB_ROOT_PASSWORD:-rootpassword}
+      POSTGRES_DB: ${DB_NAME:-wordpress}
+      POSTGRES_USER: ${DB_USER:-wpuser}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-wppassword}
+      MARIADB_DATABASE: ${DB_NAME:-wordpress}
+      MARIADB_USER: ${DB_USER:-wpuser}
+      MARIADB_PASSWORD: ${DB_PASSWORD:-wppassword}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
     volumes:
-      - db_data:/var/lib/mysql
+      - db_data:${DB_DATA_PATH:-/var/lib/mysql}
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD:-rootpassword}"]
+      test: ${DB_HEALTHCHECK_TEST:-["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD:-rootpassword}"]}
       interval: 10s
       timeout: 5s
       retries: 5

@@ -13,13 +13,51 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 CYAN='\033[0;36m'
+MAGENTA='\033[0;35m'
 NC='\033[0m' # No Color
+
+# Database configurations
+declare -A DB_IMAGES=(
+    ["mysql"]="mysql:8.0"
+    ["mariadb"]="mariadb:11.1"
+    ["postgresql"]="postgres:16-alpine"
+)
+
+declare -A DB_HOSTS=(
+    ["mysql"]="db:3306"
+    ["mariadb"]="db:3306"
+    ["postgresql"]="db:5432"
+)
+
+declare -A DB_ENV_PREFIXES=(
+    ["mysql"]="MYSQL_"
+    ["mariadb"]="MARIADB_"
+    ["postgresql"]=""
+)
+
+declare -A DB_ROOT_ENVS=(
+    ["mysql"]="MYSQL_ROOT_PASSWORD"
+    ["mariadb"]="MARIADB_ROOT_PASSWORD"
+    ["postgresql"]="POSTGRES_PASSWORD"
+)
+
+declare -A DB_DATA_PATHS=(
+    ["mysql"]="/var/lib/mysql"
+    ["mariadb"]="/var/lib/mysql"
+    ["postgresql"]="/var/lib/postgresql/data"
+)
+
+declare -A DB_HEALTHCHECKS=(
+    ["mysql"]= '["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$DB_ROOT_PASSWORD"]'
+    ["mariadb"]= '["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$DB_ROOT_PASSWORD"]'
+    ["postgresql"]= '["CMD-SHELL", "pg_isready -U $DB_USER -d $DB_NAME"]'
+)
 
 # Functions
 print_header() {
     echo -e "${CYAN}"
     echo "╔════════════════════════════════════════════╗"
-    echo "║   WordPress Docker Installer v1.0.0        ║"
+    echo "║   WordPress Docker Installer v1.1.0        ║"
     echo "║   by Avodah Systems                        ║"
     echo "╚════════════════════════════════════════════╝"
     echo -e "${NC}"
@@ -105,6 +143,59 @@ check_dependencies() {
     print_success "All dependencies are installed"
 }
 
+# Display database selection menu
+select_database() {
+    echo ""
+    echo -e "${MAGENTA}"
+    echo "╔════════════════════════════════════════════╗"
+    echo "║       Choose Your Database Backend         ║"
+    echo "╚════════════════════════════════════════════╝"
+    echo -e "${NC}"
+    echo ""
+    echo -e "${CYAN}Available database options:${NC}"
+    echo ""
+    echo -e "  ${GREEN}1${NC}) MySQL      ${BLUE}[Default]${NC} - Most popular, well-tested"
+    echo -e "  ${GREEN}2${NC}) MariaDB    ${BLUE}[Drop-in MySQL replacement]${NC} - Enhanced features"
+    echo -e "  ${GREEN}3${NC}) PostgreSQL ${BLUE}[Advanced]${NC} - Requires additional plugin"
+    echo ""
+    echo "  Info: MySQL and MariaDB work out of the box."
+    echo "        PostgreSQL requires the 'WP PG4WP' plugin."
+    echo ""
+
+    while true; do
+        read -p "$(echo -e ${GREEN}Select database [1-3, default: 1]: ${NC})" db_choice
+        db_choice=${db_choice:-1}
+
+        case $db_choice in
+            1)
+                db_type="mysql"
+                db_display_name="MySQL"
+                break
+                ;;
+            2)
+                db_type="mariadb"
+                db_display_name="MariaDB"
+                break
+                ;;
+            3)
+                db_type="postgresql"
+                db_display_name="PostgreSQL"
+                print_warning "PostgreSQL requires the WP PG4WP plugin."
+                read -p "$(echo -e ${YELLOW}Continue with PostgreSQL? [Y/n]: ${NC})" continue_pg
+                continue_pg=${continue_pg:-Y}
+                if [[ $continue_pg =~ ^[Yy]$ ]]; then
+                    break
+                fi
+                ;;
+            *)
+                print_error "Invalid choice. Please enter 1, 2, or 3."
+                ;;
+        esac
+    done
+
+    print_success "Selected: $db_display_name"
+}
+
 # Main installation wizard
 main_wizard() {
     print_header
@@ -112,6 +203,15 @@ main_wizard() {
     echo ""
     print_info "This wizard will guide you through installing WordPress with Docker."
     echo ""
+
+    # Step 0: Database Selection
+    echo ""
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${CYAN}Step 0: Database Selection${NC}"
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+
+    select_database
 
     # Step 1: Port selection
     echo ""
@@ -246,12 +346,13 @@ main_wizard() {
     wp_url=${wp_url:-localhost:$wp_port}
     print_success "WordPress URL: $wp_url"
 
-    # Step 7: Database Configuration (optional)
+    # Step 7: Database Configuration
     echo ""
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${CYAN}Step 3: Database Configuration${NC}"
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
+    print_info "Database: $db_display_name"
     print_info "Press Enter to use auto-generated secure credentials"
 
     read -p "$(echo -e ${GREEN}Database name [default: wordpress]: ${NC})" db_name
@@ -260,11 +361,25 @@ main_wizard() {
     read -p "$(echo -e ${GREEN}Database user [default: wpuser]: ${NC})" db_user
     db_user=${db_user:-wpuser}
 
-    # Generate secure random password if not provided
+    # Generate secure random password
     db_password=$(openssl rand -base64 16 | tr -d '/+=' | head -c 20)
-    db_root_password=$(openssl rand -base64 16 | tr -d '/+=' | head -c 20)
+
+    if [ "$db_type" = "postgresql" ]; then
+        # PostgreSQL uses POSTGRES_PASSWORD instead of root password
+        db_root_password=$db_password
+    else
+        db_root_password=$(openssl rand -base64 16 | tr -d '/+=' | head -c 20)
+    fi
 
     print_success "Database configured with secure random passwords"
+
+    # Set database-specific variables
+    db_image=${DB_IMAGES[$db_type]}
+    db_host=${DB_HOSTS[$db_type]}
+    db_env_prefix=${DB_ENV_PREFIXES[$db_type]}
+    db_root_env=${DB_ROOT_ENVS[$db_type]}
+    db_data_path=${DB_DATA_PATHS[$db_type]}
+    db_healthcheck=${DB_HEALTHCHECKS[$db_type]}
 
     # Summary
     echo ""
@@ -272,6 +387,7 @@ main_wizard() {
     echo -e "${CYAN}Installation Summary${NC}"
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
+    echo "  Database:       $db_display_name"
     echo "  Port:           $wp_port"
     echo "  Site Title:     $site_title"
     echo "  Admin Username: $admin_user"
@@ -280,6 +396,12 @@ main_wizard() {
     echo "  Database Name:  $db_name"
     echo "  Database User:  $db_user"
     echo ""
+
+    # PostgreSQL notice
+    if [ "$db_type" = "postgresql" ]; then
+        echo -e "${YELLOW}Note: WP PG4WP plugin will be auto-installed for PostgreSQL support.${NC}"
+        echo ""
+    fi
 
     # Confirm installation
     read -p "$(echo -e ${YELLOW}Start installation with these settings? [Y/n]: ${NC})" confirm
@@ -298,6 +420,15 @@ main_wizard() {
 # WordPress Docker Configuration
 # Generated by WordPress Docker Installer
 # Date: $(date)
+
+# Database Type: $db_display_name
+DB_TYPE=$db_type
+DB_IMAGE=$db_image
+DB_HOST=$db_host
+DB_ENV_PREFIX=$db_env_prefix
+DB_ROOT_ENV=$db_root_env
+DB_DATA_PATH=$db_data_path
+DB_HEALTHCHECK_TEST=$db_healthcheck
 
 # WordPress Configuration
 WP_PORT=$wp_port
@@ -355,6 +486,13 @@ EOF
     print_info "Finalizing installation..."
     sleep 10
 
+    # Install WP PG4WP plugin for PostgreSQL
+    if [ "$db_type" = "postgresql" ]; then
+        print_info "Installing WP PG4WP plugin for PostgreSQL support..."
+        docker compose exec -T wordpress wp plugin install wp-pg4wp --activate --allow-root 2>/dev/null || \
+        print_warning "WP PG4WP plugin will need to be installed manually. Download from: https://github.com/kevinoid/wp-pg4wp"
+    fi
+
     echo ""
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${GREEN}✓ Installation Complete!${NC}"
@@ -362,6 +500,7 @@ EOF
     echo ""
     echo -e "${GREEN}Your WordPress site is ready!${NC}"
     echo ""
+    echo "  Database:       $db_display_name"
     echo "  URL:            http://$wp_url"
     echo "  Admin Username: $admin_user"
     echo "  Admin Password: $admin_password"
@@ -370,6 +509,14 @@ EOF
     echo ""
     echo "Database credentials have been saved in the .env file."
     echo ""
+
+    if [ "$db_type" = "postgresql" ]; then
+        echo -e "${BLUE}PostgreSQL Notes:${NC}"
+        echo "  - WP PG4WP plugin enables PostgreSQL compatibility"
+        echo "  - Some plugins may not be fully compatible"
+        echo ""
+    fi
+
     echo "Useful commands:"
     echo "  Stop:    docker compose down"
     echo "  Start:   docker compose up -d"
@@ -384,6 +531,8 @@ EOF
 WordPress Docker Installer - Credentials
 Generated: $(date)
 
+Database Type: $db_display_name
+
 WordPress Site:
 ---------------
 URL: http://$wp_url
@@ -393,10 +542,19 @@ Admin Email: $admin_email
 
 Database:
 ---------------
+Database Type: $db_display_name
 Database Name: $db_name
 Database User: $db_user
 Database Password: $db_password
+EOF
+
+    if [ "$db_type" != "postgresql" ]; then
+        cat >> credentials.txt << EOF
 Root Password: $db_root_password
+EOF
+    fi
+
+    cat >> credentials.txt << EOF
 
 Keep this file secure!
 EOF

@@ -1,82 +1,110 @@
 #!/bin/bash
 set -e
 
-# If WP_AUTO_INSTALL is set, we'll handle WordPress installation automatically
-if [ "$WP_AUTO_INSTALL" = "true" ]; then
-    echo "🔧 WordPress Auto-Install enabled..."
+# Get database type from environment
+DB_TYPE=${DB_TYPE:-mysql}
 
-    # Wait for database to be ready
-    echo "⏳ Waiting for database..."
-    max_attempts=30
-    attempt=0
+echo "🔧 WordPress Auto-Install with $DB_TYPE database..."
+
+# Wait for database to be ready
+echo "⏳ Waiting for database..."
+
+wait_for_db() {
+    local max_attempts=30
+    local attempt=0
 
     while [ $attempt -lt $max_attempts ]; do
-        if mysqladmin ping -h"$WORDPRESS_DB_HOST" -u"$WORDPRESS_DB_USER" -p"$WORDPRESS_DB_PASSWORD" --silent 2>/dev/null; then
-            echo "✓ Database is ready!"
-            break
-        fi
+        case $DB_TYPE in
+            mysql|mariadb)
+                if mysqladmin ping -h"$WORDPRESS_DB_HOST" -u"$WORDPRESS_DB_USER" -p"$WORDPRESS_DB_PASSWORD" --silent 2>/dev/null; then
+                    echo "✓ Database is ready!"
+                    return 0
+                fi
+                ;;
+            postgresql)
+                # Extract host and port from WORDPRESS_DB_HOST (format: db:5432)
+                DB_HOST=$(echo $WORDPRESS_DB_HOST | cut -d: -f1)
+                DB_PORT=$(echo $WORDPRESS_DB_HOST | cut -d: -f2 -s)
+                DB_PORT=${DB_PORT:-5432}
+
+                if PGPASSWORD=$WORDPRESS_DB_PASSWORD psql -h "$DB_HOST" -p "$DB_PORT" -U "$WORDPRESS_DB_USER" -d "$WORDPRESS_DB_NAME" -c "SELECT 1" >/dev/null 2>&1; then
+                    echo "✓ Database is ready!"
+                    return 0
+                fi
+                ;;
+        esac
         echo "  Waiting for database... ($((attempt + 1))/$max_attempts)"
         sleep 2
         attempt=$((attempt + 1))
     done
 
-    # Check if WordPress is already installed
-    if [ ! -f /var/www/html/wp-config.php ]; then
-        echo "📦 Installing WordPress..."
+    echo "⚠ Database connection timeout, continuing anyway..."
+    return 0
+}
 
-        # Use wp-cli to install WordPress
-        wp core install \
-            --url="$WORDPRESS_URL" \
-            --title="$WORDPRESS_SITE_TITLE" \
-            --admin_user="$WORDPRESS_ADMIN_USER" \
-            --admin_password="$WORDPRESS_ADMIN_PASSWORD" \
-            --admin_email="$WORDPRESS_ADMIN_EMAIL" \
-            --skip-email \
-            --allow-root
+wait_for_db
 
-        echo "✓ WordPress installed successfully!"
+# Check if WordPress is already installed
+if [ "$WP_AUTO_INSTALL" = "true" ] && [ ! -f /var/www/html/wp-config.php ]; then
+    echo "📦 Installing WordPress..."
 
-        # Set permalink structure
-        wp rewrite structure '/%postname%/' --allow-root
-        echo "✓ Permalink structure set"
+    # For PostgreSQL, we need to install the compatibility layer first
+    if [ "$DB_TYPE" = "postgresql" ]; then
+        echo "📥 Installing WP PG4WP plugin for PostgreSQL compatibility..."
 
-        # Delete default post and page
-        wp post delete 1 --force --allow-root 2>/dev/null || true
-        wp post delete 2 --force --allow-root 2>/dev/null || true
-        echo "✓ Default content removed"
+        # Download and install WP PG4WP
+        cd /var/www/html/wp-content/plugins
+        if [ ! -d wp-pg4wp ]; then
+            curl -sL https://github.com/kevinoid/wp-pg4wp/archive/refs/heads/master.tar.gz | tar -xz
+            mv wp-pg4wp-master wp-pg4wp
+        fi
 
-        # Install and activate a default theme (Twenty Twenty-Four)
-        wp theme activate twentytwentyfour --allow-root 2>/dev/null || true
-        echo "✓ Default theme activated"
+        # Copy the db.php file to wp-content
+        cp /var/www/html/wp-content/plugins/wp-pg4wp/db.php /var/www/html/wp-content/db.php
 
-        echo ""
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        echo "✓ WordPress installation complete!"
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        echo ""
-        echo "  URL:      $WORDPRESS_URL"
-        echo "  Username: $WORDPRESS_ADMIN_USER"
-        echo "  Email:    $WORDPRESS_ADMIN_EMAIL"
-        echo ""
-    else
-        echo "✓ WordPress already installed, skipping..."
+        echo "✓ WP PG4WP installed"
     fi
+
+    # Use wp-cli to install WordPress
+    wp core install \
+        --url="$WORDPRESS_URL" \
+        --title="$WORDPRESS_SITE_TITLE" \
+        --admin_user="$WORDPRESS_ADMIN_USER" \
+        --admin_password="$WORDPRESS_ADMIN_PASSWORD" \
+        --admin_email="$WORDPRESS_ADMIN_EMAIL" \
+        --skip-email \
+        --allow-root
+
+    echo "✓ WordPress installed successfully!"
+
+    # Set permalink structure
+    wp rewrite structure '/%postname%/' --allow-root
+    echo "✓ Permalink structure set"
+
+    # Delete default post and page
+    wp post delete 1 --force --allow-root 2>/dev/null || true
+    wp post delete 2 --force --allow-root 2>/dev/null || true
+    echo "✓ Default content removed"
+
+    # Activate default theme
+    wp theme activate twentytwentyfour --allow-root 2>/dev/null || wp theme activate twentytwentythree --allow-root 2>/dev/null || true
+    echo "✓ Default theme activated"
+
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "✓ WordPress installation complete!"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "  Database: $DB_TYPE"
+    echo "  URL:      $WORDPRESS_URL"
+    echo "  Username: $WORDPRESS_ADMIN_USER"
+    echo "  Email:    $WORDPRESS_ADMIN_EMAIL"
+    echo ""
+
+elif [ -f /var/www/html/wp-config.php ]; then
+    echo "✓ WordPress already installed, skipping..."
 fi
 
-# Execute the original docker-entrypoint.sh
-# First, let's check if we need to source the original entrypoint
-if [ -f /usr/local/bin/docker-entrypoint-original.sh ]; then
-    # Original entrypoint was backed up
-    . /usr/local/bin/docker-entrypoint-original.sh
-else
-    # Try to find and execute the original WordPress entrypoint
-    if command -v docker-entrypoint.sh >/dev/null 2>&1; then
-        # The original entrypoint is in PATH
-        /original-entrypoint.sh "$@" 2>/dev/null || \
-        docker-entrypoint.sh.orig "$@" 2>/dev/null || \
-        exec apache2-foreground
-    else
-        # Fallback to apache2-foreground directly
-        exec apache2-foreground "$@"
-    fi
-fi
+# Execute Apache
+echo "🚀 Starting Apache..."
+exec apache2-foreground "$@"
