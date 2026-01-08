@@ -515,6 +515,11 @@ EOF
 
     print_success "Environment file created"
 
+    # Clean up any existing containers/volumes from previous installations
+    print_info "Cleaning up any previous installation..."
+    docker compose -f "$compose_file" down -v 2>/dev/null || true
+    docker rm -f wp_installer_wordpress wp_installer_db 2>/dev/null || true
+
     # Start Docker containers
     echo ""
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
