@@ -9,6 +9,12 @@ services:
       WORDPRESS_DB_NAME: ${DB_NAME:-wordpress}
       WORDPRESS_DB_USER: ${DB_USER:-wpuser}
       WORDPRESS_DB_PASSWORD: ${DB_PASSWORD}
+      DB_TYPE: ${DB_TYPE:-mysql}
+      WORDPRESS_URL: ${WP_URL:-localhost:8080}
+      WORDPRESS_SITE_TITLE: ${WP_SITE_TITLE:-My WordPress Site}
+      WORDPRESS_ADMIN_USER: ${WP_ADMIN_USER:-admin}
+      WORDPRESS_ADMIN_PASSWORD: ${WP_ADMIN_PASSWORD}
+      WORDPRESS_ADMIN_EMAIL: ${WP_ADMIN_EMAIL:-admin@example.com}
       WORDPRESS_CONFIG_EXTRA: |
         define('WP_SITEURL', 'http://${WP_URL:-localhost:8080}');
         define('WP_HOME', 'http://${WP_URL:-localhost:8080}');
@@ -36,7 +42,7 @@ services:
     volumes:
       - db_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
       interval: 10s
       timeout: 5s
       retries: 10

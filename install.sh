@@ -383,8 +383,10 @@ main_wizard() {
     # Step 6: WordPress URL
     echo ""
     prompt $GREEN "Enter WordPress URL [default: localhost:$wp_port]: "
-    read wp_url
-    wp_url=${wp_url:-localhost:$wp_port}
+    read wp_url_input
+    wp_url_input=${wp_url_input:-localhost:$wp_port}
+    # Remove http:// or https:// prefix if user provided it
+    wp_url=$(echo "$wp_url_input" | sed -E 's|^(https?://)||g')
     print_success "WordPress URL: $wp_url"
 
     # Step 7: Database Configuration
@@ -572,7 +574,7 @@ EOF
 
     # Install WordPress core
     if docker compose -f "$compose_file" exec -T wordpress wp core install \
-        --url="$wp_url" \
+        --url="http://$wp_url" \
         --title="$site_title" \
         --admin_user="$admin_user" \
         --admin_password="$admin_password" \
