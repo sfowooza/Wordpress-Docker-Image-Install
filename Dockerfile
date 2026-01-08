@@ -1,6 +1,6 @@
 FROM wordpress:6.7-php8.1
 
-# Install PHP PDO MySQL extension and WP-CLI
+# Install PHP extensions for MySQL and WP-CLI
 RUN set -ex && \
     docker-php-ext-install pdo pdo_mysql mysqli && \
     curl -o /usr/local/bin/wp https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && \
