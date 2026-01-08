@@ -545,15 +545,64 @@ EOF
 
     echo ""
 
-    # Wait additional time for WP-CLI to be available
-    print_info "Finalizing installation..."
-    sleep 10
+    # Wait for WordPress to be fully ready
+    print_info "Waiting for WordPress to be ready..."
+    sleep 15
+
+    # Check if WordPress is accessible
+    local max_http_attempts=30
+    local http_attempt=0
+    while [ $http_attempt -lt $max_http_attempts ]; do
+        if docker compose -f "$compose_file" exec -T wordpress curl -f http://localhost/ >/dev/null 2>&1; then
+            echo ""
+            print_success "WordPress is responding!"
+            break
+        fi
+        echo -n "."
+        sleep 2
+        http_attempt=$((http_attempt + 1))
+    done
+    echo ""
+
+    # Install WordPress using WP-CLI
+    print_info "Configuring WordPress..."
+
+    # Wait a bit more to ensure database is fully ready
+    sleep 5
+
+    # Install WordPress core
+    if docker compose -f "$compose_file" exec -T wordpress wp core install \
+        --url="$wp_url" \
+        --title="$site_title" \
+        --admin_user="$admin_user" \
+        --admin_password="$admin_password" \
+        --admin_email="$admin_email" \
+        --skip-email \
+        --allow-root 2>/dev/null; then
+
+        print_success "WordPress installed successfully!"
+
+        # Set permalink structure
+        docker compose -f "$compose_file" exec -T wordpress wp rewrite structure '/%postname%/' --allow-root >/dev/null 2>&1
+
+        # Delete default content
+        docker compose -f "$compose_file" exec -T wordpress wp post delete 1 --force --allow-root >/dev/null 2>&1 || true
+        docker compose -f "$compose_file" exec -T wordpress wp post delete 2 --force --allow-root >/dev/null 2>&1 || true
+
+        # Activate default theme
+        docker compose -f "$compose_file" exec -T wordpress wp theme activate twentytwentyfour --allow-root >/dev/null 2>&1 || \
+        docker compose -f "$compose_file" exec -T wordpress wp theme activate twentytwentythree --allow-root >/dev/null 2>&1 || true
+
+        print_success "WordPress configured!"
+    else
+        print_warning "WP-CLI installation failed. WordPress may still be accessible via browser."
+    fi
 
     # Install WP PG4WP plugin for PostgreSQL
     if [ "$db_type" = "postgresql" ]; then
         print_info "Installing WP PG4WP plugin for PostgreSQL support..."
         docker compose -f "$compose_file" exec -T wordpress wp plugin install wp-pg4wp --activate --allow-root 2>/dev/null || \
-        print_warning "WP PG4WP plugin will need to be installed manually. Download from: https://github.com/kevinoid/wp-pg4wp"
+        print_warning "WP PG4WP plugin will need to be installed manually."
     fi
 
     echo ""

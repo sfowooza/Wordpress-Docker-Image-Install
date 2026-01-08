@@ -15,15 +15,5 @@ RUN if ! command -v wp >/dev/null 2>&1; then \
         mv wp-cli.phar /usr/local/bin/wp; \
     fi
 
-# Backup the original entrypoint
-RUN if [ -f /usr/local/bin/docker-entrypoint.sh ]; then \
-        cp /usr/local/bin/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh.orig; \
-    fi
-
-# Copy custom entrypoint script
-COPY docker-entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
-
-# Set the entrypoint
-ENTRYPOINT ["docker-entrypoint.sh"]
-CMD ["apache2-foreground"]
+# Use the default WordPress entrypoint
+# WordPress will be installed automatically via environment variables
