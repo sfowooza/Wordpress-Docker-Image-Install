@@ -10,8 +10,8 @@ services:
       WORDPRESS_DB_USER: ${DB_USER:-wpuser}
       WORDPRESS_DB_PASSWORD: ${DB_PASSWORD}
       WORDPRESS_CONFIG_EXTRA: |
-        define('WP_SITEURL', '${WP_URL:-http://localhost:8080}');
-        define('WP_HOME', '${WP_URL:-http://localhost:8080}');
+        define('WP_SITEURL', 'http://${WP_URL:-localhost:8080}');
+        define('WP_HOME', 'http://${WP_URL:-localhost:8080}');
     volumes:
       - wordpress_data:/var/www/html
     depends_on:
