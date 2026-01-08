@@ -1,19 +1,8 @@
-FROM wordpress:latest
+FROM wordpress:6.7-php8.1
 
-# Install required packages including PostgreSQL client
-RUN apt-get update && apt-get install -y \
-    curl \
-    wget \
-    unzip \
-    postgresql-client \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install WP-CLI if not already present
-RUN if ! command -v wp >/dev/null 2>&1; then \
-        curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && \
-        chmod +x wp-cli.phar && \
-        mv wp-cli.phar /usr/local/bin/wp; \
-    fi
-
-# Use the default WordPress entrypoint
-# WordPress will be installed automatically via environment variables
+# Install PHP PDO MySQL extension and WP-CLI
+RUN set -ex && \
+    docker-php-ext-install pdo pdo_mysql mysqli && \
+    curl -o /usr/local/bin/wp https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && \
+    chmod +x /usr/local/bin/wp && \
+    wp --info

@@ -582,6 +582,10 @@ EOF
 
         print_success "WordPress installed successfully!"
 
+        # Explicitly set siteurl and home options (fix for WP-CLI issue)
+        docker compose -f "$compose_file" exec -T wordpress wp option update siteurl "http://$wp_url" --allow-root >/dev/null 2>&1
+        docker compose -f "$compose_file" exec -T wordpress wp option update home "http://$wp_url" --allow-root >/dev/null 2>&1
+
         # Set permalink structure
         docker compose -f "$compose_file" exec -T wordpress wp rewrite structure '/%postname%/' --allow-root >/dev/null 2>&1
 

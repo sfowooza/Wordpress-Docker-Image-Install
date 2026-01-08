@@ -1,6 +1,6 @@
 services:
   wordpress:
-    image: wordpress:latest
+    build: .
     container_name: wp_installer_wordpress
     ports:
       - "${WP_PORT:-8080}:80"
